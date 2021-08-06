@@ -14,9 +14,6 @@ inputs:
     description: 'Cause message to use'
     required: true
     default: 'Triggered from Github'
-outputs:
-  status: # final status of triggered job
-    description: 'The final status of triggered job'
 runs:
   using: 'node12'
   main: 'index.js'

@@ -8,77 +8,112 @@ function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function trigger_job(token, account_id, job_id) {
+
+  const postData = JSON.stringify({
+    'cause': core.getInput('cause')
+  });
+  
+  const jobRunOptions = {
+    hostname: 'https://cloud.getdbt.com',
+    port: 80,
+    path: `/api/v2/accounts/${account_id}/jobs/${job_id}/run/`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+      const req = http.request(jobRunOptions, (response) => {
+        let chunks_of_data = [];
+    
+        response.on('data', (fragments) => {
+          chunks_of_data.push(fragments);
+        });
+    
+        response.on('end', () => {
+          let response_body = Buffer.concat(chunks_of_data);
+          // promise resolved on success
+          resolve(response_body.toString());
+        });
+    
+        response.on('error', (error) => {
+          // promise rejected on error
+          reject(error);
+        });
+      req.on('error', (e) => {
+        reject(e.message);
+      });
+      req.write(postData);
+      req.end();
+    });
+  });
+}
+
+function get_job_run(token, account_id, run_id) {
+
+  const runOptions = {
+    hostname: 'https://cloud.getdbt.com',
+    port: 80,
+    path: `/api/v2/accounts/${account_id}/runs/${run_id}/`,
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(runOptions, (response) => {
+      let chunks_of_data = [];
+    
+      response.on('data', (fragments) => {
+        chunks_of_data.push(fragments);
+      });
+  
+      response.on('end', () => {
+        let response_body = Buffer.concat(chunks_of_data);
+        // promise resolved on success
+        resolve(response_body.toString());
+      });
+    
+      response.on('error', (error) => {
+        // promise rejected on error
+        reject(error);
+      });
+      req.on('error', (e) => {
+        reject(e.message);
+      });
+      req.end();
+    });
+  });
 } 
 
-const postData = JSON.stringify({
-  'cause': core.getInput('cause')
-});
 
-const jobRunOptions = {
-  hostname: 'https://cloud.getdbt.com',
-  port: 80,
-  path: `/api/v2/accounts/${core.getInput('dbt_cloud_account_id')}/jobs/${core.getInput('dbt_cloud_job_id')}/run/`,
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${core.getInput('dbt_cloud_token')}`
-  }
-};
 
-const req = http.request(jobRunOptions, (res) => {
-
-  console.log(`STATUS: ${res.statusCode}`);
-  
-  res.on('data', (chunk) => {
-
-    const runOptions = {
-      hostname: 'https://cloud.getdbt.com',
-      port: 80,
-      path: `/api/v2/accounts/${core.getInput('dbt_cloud_account_id')}/runs/${chunk.id}/`,
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${core.getInput('dbt_cloud_token')}`
-      }
-    };
+trigger_job(
+  token=core.getInput('dbt_cloud_token'), 
+  account_id=core.getInput('dbt_cloud_account_id'), 
+  job_id=core.getInput('dbt_cloud_job_id'))
+  .then((res) => {
+    const run_id = res.data.id;
 
     while (true) {
-      const response = await http.request(runOptions).end();
-      if (response.body.finished_at) {
-        if (response.body.status_message == 'Success') {
-          core.setOutput('status', 'Success');
-          return;
+      const run_status = await get_job_run(token=core.getInput('dbt_cloud_token'), account_id=core.getInput('dbt_cloud_account_id'), run_id=run_id);
+      if (run_status.data.finished_at) {
+        if (run_status.data.status_message != 'Success') {
+          core.setFailed(run_status.data);
         }
-        core.setFailed(response.body.status_message);
-        return;
       }
-      await sleep(1000);
+
+      sleep(60 * 1000);
     }
 
-    
+  })
+  .error((e) => {
+    core.setFailed(e.message);
   });
-
-  res.on('end', () => {
-    console.log('No more data in response.');
-  });
-
-});
-
-req.on('error', (e) => {
-  core.setFailed(e.message);
-});
-req.write(postData);
-req.end();
-
-// try {
-//   // `who-to-greet` input defined in action metadata file
-//   const nameToGreet = core.getInput('who-to-greet');
-//   console.log(`Hello ${nameToGreet}!`);
-//   const time = (new Date()).toTimeString();
-//   core.setOutput("time", time);
-//   // Get the JSON webhook payload for the event that triggered the workflow
-//   const payload = JSON.stringify(github.context.payload, undefined, 2)
-//   console.log(`The event payload: ${payload}`);
-// } catch (error) {
-//   core.setFailed(error.message);
-// }
