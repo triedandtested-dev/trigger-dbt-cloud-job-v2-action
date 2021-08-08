@@ -1,8 +1,24 @@
+const axios = require('axios')
 const core = require('@actions/core');
 const github = require('@actions/github');
-const { copyFileSync } = require('fs');
 
-const http = require('http');
+const run_status = {
+  1: 'Queued',
+  2: 'Starting',
+  3: 'Running',
+  10: 'Success',
+  20: 'Error',
+  30: 'Cancelled'
+}
+
+const dbt_cloud_api = axios.create({
+  baseURL: 'https://cloud.getdbt.com/api/v2/',
+  timeout: 1000,
+  headers: {
+    'Authorization': `Bearer ${core.getInput('dbt_cloud_token')}`,
+    'Content-Type': 'application/json'
+  }
+});
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -10,110 +26,69 @@ function sleep(ms) {
   });
 }
 
-function trigger_job(token, account_id, job_id) {
-
-  const postData = JSON.stringify({
-    'cause': core.getInput('cause')
-  });
-  
-  const jobRunOptions = {
-    hostname: 'https://cloud.getdbt.com',
-    port: 80,
-    path: `/api/v2/accounts/${account_id}/jobs/${job_id}/run/`,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
-  };
+function run_job(account_id, job_id, cause) {
 
   return new Promise((resolve, reject) => {
-      const req = http.request(jobRunOptions, (response) => {
-        let chunks_of_data = [];
-    
-        response.on('data', (fragments) => {
-          chunks_of_data.push(fragments);
-        });
-    
-        response.on('end', () => {
-          let response_body = Buffer.concat(chunks_of_data);
-          // promise resolved on success
-          resolve(response_body.toString());
-        });
-    
-        response.on('error', (error) => {
-          // promise rejected on error
-          reject(error);
-        });
-      req.on('error', (e) => {
-        reject(e.message);
-      });
-      req.write(postData);
-      req.end();
+    dbt_cloud_api.post(`/accounts/${account_id}/jobs/${job_id}/run/`, {
+    cause: cause
+    })
+    .then(res => {
+      resolve(res.data);
+    })
+    .catch(error => {
+      reject(error);
     });
   });
 }
 
-function get_job_run(token, account_id, run_id) {
-
-  const runOptions = {
-    hostname: 'https://cloud.getdbt.com',
-    port: 80,
-    path: `/api/v2/accounts/${account_id}/runs/${run_id}/`,
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
-  };
-
+function get_job_run(account_id, run_id) {
   return new Promise((resolve, reject) => {
-    const req = http.request(runOptions, (response) => {
-      let chunks_of_data = [];
-    
-      response.on('data', (fragments) => {
-        chunks_of_data.push(fragments);
-      });
-  
-      response.on('end', () => {
-        let response_body = Buffer.concat(chunks_of_data);
-        // promise resolved on success
-        resolve(response_body.toString());
-      });
-    
-      response.on('error', (error) => {
-        // promise rejected on error
-        reject(error);
-      });
-      req.on('error', (e) => {
-        reject(e.message);
-      });
-      req.end();
+    dbt_cloud_api.get(`/accounts/${account_id}/runs/${run_id}/`)
+    .then(res => {
+      resolve(res.data);
+    })
+    .catch(error => {
+      reject(error);
     });
   });
 } 
 
 
+async function executeAction () {
 
-trigger_job(
-  token=core.getInput('dbt_cloud_token'), 
-  account_id=core.getInput('dbt_cloud_account_id'), 
-  job_id=core.getInput('dbt_cloud_job_id'))
-  .then((res) => {
-    const run_id = res.data.id;
+  const account_id=core.getInput('dbt_cloud_account_id');
+  const job_id=core.getInput('dbt_cloud_job_id');
+  const cause=core.getInput('message');
 
-    while (true) {
-      const run_status = await get_job_run(token=core.getInput('dbt_cloud_token'), account_id=core.getInput('dbt_cloud_account_id'), run_id=run_id);
-      if (run_status.data.finished_at) {
-        if (run_status.data.status_message != 'Success') {
-          core.setFailed(run_status.data);
-        }
+  let res = await run_job(account_id, job_id, cause);
+  let run_id = res.data.id;
+
+  while (true) {
+    await sleep(core.getInput('interval') * 1000);
+    let res = await get_job_run(account_id, run_id);
+    let run = res.data;
+
+    console.log(run);
+
+    if (run.finished_at) {
+      core.info('job finished');
+
+      let status = run_status[run.status];
+
+      if (status != 'Success') {
+        core.setFailed(`job finished with '${status}'.`);
+        return;
       }
 
-      sleep(60 * 1000);
+      core.info(`job finished with '${status}'.`);
+      return `job finished with '${status}'.`;
     }
+  }
+}
 
-  })
-  .error((e) => {
-    core.setFailed(e.message);
-  });
+
+
+executeAction().catch(e => {
+  core.setFailed('There has been a problem with running your dbt cloud job: ' + e.message);
+});
+

@@ -1,21 +1,35 @@
 # Trigger DBT Cloud Job action
 
-This action prints "Hello World" or "Hello" + the name of a person to greet to the log.
+This action triggers a dbt cloud job using the dbt cloud api v2.
 
 ## Inputs
 
-## `who-to-greet`
+## `dbt_cloud_token`
 
-**Required** The name of the person to greet. Default `"World"`.
+**Required** DBT cloud api token.
 
-## Outputs
+## `dbt_cloud_account_id`
 
-## `time`
+**Required** DBT cloud account id.
 
-The time we greeted you.
+## `dbt_cloud_job_id`
 
-## Example usage
+**Required** DBT cloud job id.
+
+## `cause`
+
+**Optional** Cause message to use. Default `"Triggered from Github"`.
+
+## `interval`
+
+**Optional** The interval between polls in seconds. Default `30`.
+
+## Example usage.
 
 uses: actions/trigger-dbt-cloud-job-v2-action@v1.1
 with:
-  who-to-greet: 'Mona the Octocat'
+  dbt_cloud_token: 'token' // consider using secrets.
+  dbt_cloud_account_id: 'account id'
+  dbt_cloud_job_id: 'job id'
+  cause: 'Tiggered from my action'
+  interval: 30
