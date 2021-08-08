@@ -25,7 +25,7 @@ This action triggers a dbt cloud job using the dbt cloud api v2.
 **Optional** The interval between polls in seconds. Default `30`.
 
 ## Example usage.
-
+```
 uses: actions/trigger-dbt-cloud-job-v2-action@v1.1
 with:
   dbt_cloud_token: 'token' // consider using secrets.
@@ -33,3 +33,4 @@ with:
   dbt_cloud_job_id: 'job id'
   cause: 'Tiggered from my action'
   interval: 30
+```
