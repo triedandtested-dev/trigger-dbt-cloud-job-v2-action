@@ -26,7 +26,7 @@ This action triggers a dbt cloud job using the dbt cloud api v2.
 
 ## Example usage.
 ```
-uses: actions/trigger-dbt-cloud-job-v2-action@v1.1
+uses: triedandtested-dev/trigger-dbt-cloud-job-v2-action@v1.1
 with:
   dbt_cloud_token: 'token' // consider using secrets.
   dbt_cloud_account_id: 'account id'
