@@ -62,13 +62,15 @@ async function executeAction () {
 
   let res = await run_job(account_id, job_id, cause);
   let run_id = res.data.id;
+  
+  core.info(`Triggered job. ${res.data.href}`);
 
   while (true) {
     await sleep(core.getInput('interval') * 1000);
     let res = await get_job_run(account_id, run_id);
     let run = res.data;
 
-    console.log(run);
+    core.info(`${run.id}` - `${run_status[run.status]}`);
 
     if (run.finished_at) {
       core.info('job finished');
