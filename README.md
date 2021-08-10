@@ -1,36 +1,26 @@
 # Trigger DBT Cloud Job action
 
-This action triggers a dbt cloud job using the dbt cloud api v2.
+This action triggers a job run hosted on [DBT Cloud](https://cloud.getdbt.com).
 
-## Inputs
+**Supports: DBT Cloud API v2**.
 
-## `dbt_cloud_token`
+### Inputs.
+  > **Required**:
+  > - dbt_cloud_token - DBT cloud api token.
+  > - dbt_cloud_account_id - DBT cloud account id.
+  > - dbt_cloud_job_id - DBT cloud job id.
+  
+  > **Optional**:
+  > - cause - Cause message to use. [Default=`"Triggered from Github"`].
+  > - interval - The interval between polls in seconds. [Default=`30`].
 
-**Required** DBT cloud api token.
-
-## `dbt_cloud_account_id`
-
-**Required** DBT cloud account id.
-
-## `dbt_cloud_job_id`
-
-**Required** DBT cloud job id.
-
-## `cause`
-
-**Optional** Cause message to use. Default `"Triggered from Github"`.
-
-## `interval`
-
-**Optional** The interval between polls in seconds. Default `30`.
-
-## Example usage.
-```
+### Example usage.
+```yaml
 uses: triedandtested-dev/trigger-dbt-cloud-job-v2-action@v1.1
 with:
-  dbt_cloud_token: 'token' // consider using secrets.
-  dbt_cloud_account_id: 'account id'
-  dbt_cloud_job_id: 'job id'
+  dbt_cloud_token: '${{ secrets.DBT_CLOUD_API_TOKEN }}'.
+  dbt_cloud_account_id: ${{ secrets.DBT_ACCOUNT_ID }}
+  dbt_cloud_job_id: 00000 # id of job you want to run.
   cause: 'Tiggered from my action'
   interval: 30
 ```
