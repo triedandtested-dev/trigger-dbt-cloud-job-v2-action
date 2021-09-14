@@ -16,7 +16,7 @@ This action triggers a job run hosted on [DBT Cloud](https://cloud.getdbt.com).
 
 ### Example usage.
 ```yaml
-uses: triedandtested-dev/trigger-dbt-cloud-job-v2-action@v1.1
+uses: triedandtested-dev/trigger-dbt-cloud-job-v2-action@v1.3
 with:
   dbt_cloud_token: '${{ secrets.DBT_CLOUD_API_TOKEN }}'.
   dbt_cloud_account_id: ${{ secrets.DBT_ACCOUNT_ID }}
